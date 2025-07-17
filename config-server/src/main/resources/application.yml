@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations:
+            - file:D:/SPRINGBOOT/iljimae-microservices/config-server-files/
+            - file:D:/SPRINGBOOT/iljimae-microservices/config-server-files/services/{application}/
+server:
+  port: 8888
