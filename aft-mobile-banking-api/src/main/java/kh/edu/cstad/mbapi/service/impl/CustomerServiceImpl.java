@@ -1,11 +1,15 @@
 package kh.edu.cstad.mbapi.service.impl;
 
 import kh.edu.cstad.mbapi.domain.Customer;
+import kh.edu.cstad.mbapi.domain.CustomerSegment;
+import kh.edu.cstad.mbapi.domain.KYC;
 import kh.edu.cstad.mbapi.dto.CreateCustomerRequest;
 import kh.edu.cstad.mbapi.dto.CustomerResponse;
 import kh.edu.cstad.mbapi.dto.UpdateCustomerRequest;
 import kh.edu.cstad.mbapi.mapper.CustomerMapper;
 import kh.edu.cstad.mbapi.repository.CustomerRepository;
+import kh.edu.cstad.mbapi.repository.CustomerSegmentRepository;
+import kh.edu.cstad.mbapi.repository.KYCRepository;
 import kh.edu.cstad.mbapi.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +28,60 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final CustomerMapper customerMapper;
+    private final KYCRepository kycRepository;
+    private final CustomerSegmentRepository customerSegmentRepository;
+
+    @Override
+    public CustomerResponse createNew(CreateCustomerRequest createCustomerRequest) {
+
+        if (customerRepository.existsByEmail(createCustomerRequest.email())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Email already exists"
+            );
+        }
+
+        if (customerRepository.existsByPhoneNumber(createCustomerRequest.phoneNumber())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Phone number already exists"
+            );
+        }
+
+        // Validation national card ID for creating KYC
+        if (kycRepository.existsByNationalCardId(createCustomerRequest.nationalCardId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "National card ID already exists"
+            );
+        }
+
+        // Validation customer segment
+        CustomerSegment customerSegment = customerSegmentRepository
+                .findBySegment(createCustomerRequest.customerSegment())
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Customer segment not found"));
+
+        Customer customer = customerMapper.fromCreateCustomerRequest(createCustomerRequest);
+        customer.setCustomerSegment(customerSegment);
+        customer.setIsDeleted(false);
+
+        // Prepare KYC of customer
+        KYC kyc = new KYC();
+        kyc.setCustomer(customer);
+        kyc.setNationalCardId(createCustomerRequest.nationalCardId());
+        kyc.setIsVerified(false);
+        kyc.setIsDeleted(false);
+        customer.setKyc(kyc);
+
+        log.info("Customer ID before save: {}", customer.getId());
+        customer = customerRepository.save(customer);
+        log.info("Customer ID after save: {}", customer.getId());
+
+        return customerMapper.toCustomerResponse(customer);
+    }
+
 
     @Transactional
     @Override
@@ -73,34 +131,6 @@ public class CustomerServiceImpl implements CustomerService {
                 .stream()
                 .map(customerMapper::toCustomerResponse)
                 .toList();
-    }
-
-
-    @Override
-    public CustomerResponse createNew(CreateCustomerRequest createCustomerRequest) {
-
-        if (customerRepository.existsByEmail(createCustomerRequest.email())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Email already exists"
-            );
-        }
-
-        if (customerRepository.existsByPhoneNumber(createCustomerRequest.phoneNumber())) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "Phone number already exists"
-            );
-        }
-
-        Customer customer = customerMapper.fromCreateCustomerRequest(createCustomerRequest);
-        customer.setIsDeleted(false);
-
-        log.info("Customer ID before save: {}", customer.getId());
-        customer = customerRepository.save(customer);
-        log.info("Customer ID after save: {}", customer.getId());
-
-        return customerMapper.toCustomerResponse(customer);
     }
 
 }
