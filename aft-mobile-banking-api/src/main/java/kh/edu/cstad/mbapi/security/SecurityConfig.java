@@ -2,49 +2,24 @@ package kh.edu.cstad.mbapi.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    @Bean
-    public InMemoryUserDetailsManager inMemoryUserDetailsManager() {
-        InMemoryUserDetailsManager manager = new InMemoryUserDetailsManager();
-
-        // Create ADMIN
-        UserDetails admin = User.builder()
-                .username("admin")
-                .password("{noop}admin@123")
-                .roles("ADMIN")
-                .build();
-        manager.createUser(admin);
-
-        // Create STAFF
-        UserDetails staff = User.builder()
-                .username("staff")
-                .password("{noop}staff@123")
-                .roles("STAFF")
-                .build();
-        manager.createUser(staff);
-
-        // Create CUSTOMER
-        UserDetails customer = User.builder()
-                .username("customer")
-                .password("{noop}customer@123")
-                .roles("CUSTOMER")
-                .build();
-        manager.createUser(customer);
-
-        return manager;
-    }
 
     @Bean
     public SecurityFilterChain apiSecurity(HttpSecurity http) throws Exception {
@@ -61,7 +36,9 @@ public class SecurityConfig {
 
         // Set security mechanism
         // Basic Authentication (username & password)
-        http.httpBasic(Customizer.withDefaults());
+        http.oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(Customizer.withDefaults())
+        );
 
         // Set session to stateless
         http.sessionManagement(session
@@ -69,6 +46,25 @@ public class SecurityConfig {
         );
 
         return http.build();
+    }
+
+
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverterForKeycloak() {
+
+        Converter<Jwt, Collection<GrantedAuthority>> jwtGrantedAuthoritiesConverter = jwt -> {
+
+            Map<String, Collection<String>> realmAccess = jwt.getClaim("realm_access");
+            Collection<String> roles = realmAccess.get("roles");
+
+            return roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .collect(Collectors.toList());
+        };
+
+        var jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);
+        return jwtAuthenticationConverter;
     }
 
 }
