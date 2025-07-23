@@ -1,0 +1,14 @@
+services:
+  mb-api:
+    build: .
+    image: "mb-api"
+    container_name: "mb-api"
+    ports:
+      - "6800:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
