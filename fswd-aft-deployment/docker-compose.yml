@@ -1,0 +1,52 @@
+services:
+  db-kcpg-fswd:
+    image: postgres:17.5-bullseye
+    container_name: db-kcpg-fswd
+    environment:
+      POSTGRES_DB: db_keycloak
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwer
+    ports:
+      - 5430:5432
+    volumes:
+      - postgres_fswd_vol:/var/lib/postgresql/data
+    networks:
+      - kcpg_fswd_net
+  kc-fswd:
+    image: quay.io/keycloak/keycloak:26.3.1
+    container_name: kc-fswd
+    depends_on:
+      - db-kcpg-fswd
+    environment:
+      # Database Configuration
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db-kcpg-fswd:5432/db_keycloak
+      KC_DB_USERNAME: postgres
+      KC_DB_PASSWORD: qwer
+      
+      # Admin User
+      KC_BOOTSTRAP_ADMIN_USERNAME: kcadmin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: qwer
+      
+      # Production Settings
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+    ports:
+      - "9999:8080"
+      - "8443:8443"
+    volumes:
+      - ./keycloak/themes:/opt/keycloak/themes
+      - ./keycloak/conf:/opt/keycloak/conf
+      - ./keycloak/data:/opt/keycloak/data
+    networks:
+      - kcpg_fswd_net
+    command:
+      - start-dev
+
+volumes:
+  postgres_fswd_vol:
+
+networks:
+  kcpg_fswd_net:
