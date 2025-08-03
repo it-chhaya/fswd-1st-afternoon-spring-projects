@@ -37,7 +37,7 @@ services:
       - "9999:8080"
       - "8443:8443"
     volumes:
-      - ./keycloak/themes:/opt/keycloak/themes
+      - ./keycloak/themes:/opt/keycloak/providers/
       - ./keycloak/conf:/opt/keycloak/conf
       - ./keycloak/data:/opt/keycloak/data
     networks:
